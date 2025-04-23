@@ -1,30 +1,58 @@
-// components/BuyBundleCarousel.js
 'use client';
-import React from 'react';
+import BuyBundlePaymentType from './BuyBundlePaymentType';
 
-const bundlePhases = [
-  { phase: 1, price: 100, oamPerBundle: 50, supply: 250 },
-  { phase: 2, price: 500, oamPerBundle: 50, supply: 250 },
-  { phase: 3, price: 850, oamPerBundle: 50, supply: 250 },
+const BUNDLE_PHASES = [
+  { phase: 1, price: 100, supply: 250 },
+  { phase: 2, price: 500, supply: 250 },
+  { phase: 3, price: 850, supply: 250 }
 ];
 
-const BuyBundleCarousel = () => {
+export default function BuyBundleCarousel({ signer }) {
+  const currentPhase = BUNDLE_PHASES[0]; // Static for now, dynamic logic optional later
+
   return (
-    <div style={{ overflowY: 'auto', maxHeight: '300px', padding: '10px', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '10px' }}>
-      {bundlePhases.map(({ phase, price, oamPerBundle, supply }) => (
-        <div key={phase} style={{ marginBottom: '15px', padding: '12px', backgroundColor: 'rgba(255, 255, 255, 0.07)', borderRadius: '8px' }}>
-          <h4 style={{ color: '#00FFF0' }}>Phase {phase}</h4>
-          <p style={{ margin: 0 }}>Price: ${price}</p>
-          <p style={{ margin: 0 }}>Bundles Available: {supply}</p>
-          <p style={{ margin: 0 }}>Each Bundle: {oamPerBundle} OAM</p>
-        </div>
-      ))}
+    <div style={{
+      background: 'rgba(0, 0, 0, 0.5)',
+      backdropFilter: 'blur(8px)',
+      borderRadius: '12px',
+      padding: '20px',
+      border: '1px solid rgba(255,255,255,0.1)',
+      textAlign: 'center',
+      maxWidth: '700px',
+      margin: '0 auto'
+    }}>
+
+      {/* Phase Display */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginBottom: '20px',
+        gap: '10px',
+        flexWrap: 'wrap'
+      }}>
+        {BUNDLE_PHASES.map(({ phase, price, supply }) => {
+          const isActive = phase === currentPhase.phase;
+          return (
+            <div key={phase} style={{
+              flex: '1 1 30%',
+              padding: '15px',
+              borderRadius: '10px',
+              background: isActive ? 'rgba(0,255,240,0.1)' : 'rgba(255,255,255,0.05)',
+              border: isActive ? '2px solid #00FFF0' : '1px solid rgba(255,255,255,0.1)',
+              color: isActive ? '#00FFF0' : '#888',
+              fontWeight: isActive ? 'bold' : 'normal',
+              transition: 'all 0.3s ease'
+            }}>
+              <div>Phase {phase}</div>
+              <div>Price: ${price}</div>
+              <div>Supply: {supply}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Buy Handler Module */}
+      <BuyBundlePaymentType signer={signer} selectedPhase={currentPhase.phase} />
     </div>
   );
-};
-
-export default BuyBundleCarousel;
-
-
-
-
+}

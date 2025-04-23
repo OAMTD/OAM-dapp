@@ -1,25 +1,57 @@
-
-// components/BuyFlashbitsCarousel.js
 'use client';
-import React from 'react';
+import FlashbitsPaymentType from './BuyFlashbitsPaymentType';
 
-const flashbitsPhases = [
-  { phase: 1, price: 0.0001001, cap: 250000 },
-  { phase: 2, price: 0.000125, cap: 750000 },
+const FLASHBITS_PHASES = [
+  { phase: 1, price: 0.0001001, cap: 250000000000 },
+  { phase: 2, price: 0.000125, cap: 750000000000 }
 ];
 
-const FlashCarousel = () => {
+export default function FlashCarousel({ signer }) {
+  const currentPhase = FLASHBITS_PHASES[0]; // Change logic if dynamic later
+
   return (
-    <div style={{ overflowY: 'auto', maxHeight: '300px', padding: '10px', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '10px' }}>
-      {flashbitsPhases.map(({ phase, price, cap }) => (
-        <div key={phase} style={{ marginBottom: '15px', padding: '12px', backgroundColor: 'rgba(255, 255, 255, 0.07)', borderRadius: '8px' }}>
-          <h4 style={{ color: '#00FFF0' }}>Phase {phase}</h4>
-          <p style={{ margin: 0 }}>Price: ${price.toFixed(7)} per Flashbits</p>
-          <p style={{ margin: 0 }}>OAM Cap: {cap.toLocaleString()} OAM</p>
-        </div>
-      ))}
+    <div style={{
+      background: 'rgba(0, 0, 0, 0.5)',
+      backdropFilter: 'blur(8px)',
+      borderRadius: '12px',
+      padding: '20px',
+      border: '1px solid rgba(255,255,255,0.1)',
+      textAlign: 'center',
+      maxWidth: '700px',
+      margin: '0 auto'
+    }}>
+
+      {/* Phase Blocks */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginBottom: '20px',
+        gap: '10px',
+        flexWrap: 'wrap'
+      }}>
+        {FLASHBITS_PHASES.map(({ phase, price, cap }) => {
+          const isActive = phase === currentPhase.phase;
+          return (
+            <div key={phase} style={{
+              flex: '1 1 45%',
+              padding: '15px',
+              borderRadius: '10px',
+              background: isActive ? 'rgba(0,255,240,0.1)' : 'rgba(255,255,255,0.05)',
+              border: isActive ? '2px solid #00FFF0' : '1px solid rgba(255,255,255,0.1)',
+              color: isActive ? '#00FFF0' : '#888',
+              fontWeight: isActive ? 'bold' : 'normal',
+              transition: 'all 0.3s ease'
+            }}>
+              <div>Phase {phase}</div>
+              <div>Price: ${price.toFixed(7)}</div>
+              <div>Cap: {cap.toLocaleString()} Flashbits</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Payment Handler */}
+      <FlashbitsPaymentType signer={signer} selectedPhase={currentPhase.phase} />
     </div>
   );
-};
-
-export default FlashCarousel
+}

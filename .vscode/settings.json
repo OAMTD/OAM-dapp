@@ -1,0 +1,14 @@
+
+{
+    "files.autoSave": "afterDelay",
+    "settingsSync.ignoredExtensions": [],
+    "files.exclude": {
+      "**/.next": false,
+      "**/node_modules": false
+    },
+    "explorer.excludeGitIgnore": false,
+    "search.exclude": {
+      "**/node_modules": false,
+      "**/.next": false
+    }
+  }

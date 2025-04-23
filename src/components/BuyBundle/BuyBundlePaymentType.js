@@ -1,100 +1,117 @@
+
+
+
 'use client';
+
 import { useState } from 'react';
-import { ethers } from 'ethers';
-import oamTokenAbi_abi from '../../abi/oamTokendao_abi.js';
-import erc20Abi from '../../abi/erc20Abi.js';
-import { BUNDLE_PHASES, calculateBundleCost } from './BuyBundlePhase.js';
+import { parseUnits } from 'viem';
+import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
+import { erc20Abi } from '../../abi/erc20Abi.js';
+import oamTokenAbi from '../../abi/oamTokendao_abi.js';
+import { MyStyledConnectButton } from '../MyStyledConnectButton';
 
-const TOKEN_ADDRESSES = {
-  usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS,
-  usdt: process.env.NEXT_PUBLIC_USDT_ADDRESS,
-  weth: process.env.NEXT_PUBLIC_WETH_ADDRESS
-};
+const BUNDLE_PHASES = [
+  { phase: 1, price: 100, supply: 250 },
+  { phase: 2, price: 500, supply: 250 },
+  { phase: 3, price: 850, supply: 250 },
+];
 
-const BuyBundlePaymentType = ({ signer }) => {
+const BuyBundlePaymentType = () => {
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
+
   const [selectedPhase, setSelectedPhase] = useState(1);
   const [quantity, setQuantity] = useState(1);
-  const [paymentToken, setPaymentToken] = useState('matic');
   const [txHash, setTxHash] = useState('');
   const [loading, setLoading] = useState(false);
 
   const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
 
   const handleBuy = async () => {
+    if (!walletClient || !address) {
+      alert('Connect your wallet first.');
+      return;
+    }
+
+    setLoading(true);
     try {
-      setLoading(true);
-      const contract = new ethers.Contract(contractAddress, oamTokenAbi, signer);
-      const cost = calculateBundleCost(selectedPhase, quantity);
+      const bundleInfo = BUNDLE_PHASES.find(p => p.phase === selectedPhase);
+      const totalUsd = bundleInfo.price * quantity;
+      const ethValue = parseUnits(totalUsd.toString(), 18); // Assuming ETH equivalent
 
-      if (paymentToken === 'matic') {
-        const tx = await contract.buyWhitelistBundle({ value: ethers.parseEther(cost.toString()) });
-        await tx.wait();
-        setTxHash(tx.hash);
-      } else {
-        const tokenAddress = TOKEN_ADDRESSES[paymentToken.toLowerCase()];
-        const token = new ethers.Contract(tokenAddress, erc20Abi, signer);
-        const decimals = await token.decimals();
-        const formattedCost = ethers.parseUnits(cost.toString(), decimals);
+      const hash = await walletClient.writeContract({
+        address: contractAddress,
+        abi: oamTokenAbi,
+        functionName: 'buyBundle',
+        args: [selectedPhase, quantity],
+        value: ethValue
+      });
 
-        const user = await signer.getAddress();
-        const allowance = await token.allowance(user, contract.target);
-        if (allowance < formattedCost) {
-          const approvalTx = await token.approve(contract.target, formattedCost);
-          await approvalTx.wait();
-        }
-
-        const tx = await contract.buyWhitelistBundleWithToken(tokenAddress, formattedCost);
-        await tx.wait();
-        setTxHash(tx.hash);
-      }
+      setTxHash(hash);
     } catch (err) {
-      console.error("Bundle Purchase Failed:", err.message);
-      alert("Error: " + err.message);
+      console.error('Transaction failed:', err.message);
+      alert('Buy failed: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Buy Whitelist Bundle</h2>
+    <div style={{ padding: 20 }}>
+      <h2>Buy Bundle</h2>
+      <MyStyledConnectButton />
 
-      <label>Phase:</label>
-      <select value={selectedPhase} onChange={(e) => setSelectedPhase(Number(e.target.value))}>
-        {BUNDLE_PHASES.map(({ phase, price, supply, oamPerBundle }) => (
-          <option key={phase} value={phase}>
-            Phase {phase}: ${price} | {supply} Bundles | {oamPerBundle} OAM each
-          </option>
-        ))}
-      </select>
+      <div>
+        <label>Phase:</label><br />
+        <select value={selectedPhase} onChange={(e) => setSelectedPhase(Number(e.target.value))}>
+          {BUNDLE_PHASES.map(p => (
+            <option key={p.phase} value={p.phase}>
+              Phase {p.phase} — ${p.price} | Supply: {p.supply}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      <br /><label>Quantity:</label>
-      <input
-        type="number"
-        min="1"
-        value={quantity}
-        onChange={(e) => setQuantity(Number(e.target.value))}
-      />
+      <div>
+        <label>Quantity:</label><br />
+        <input
+          type="number"
+          value={quantity}
+          min={1}
+          onChange={(e) => setQuantity(Number(e.target.value))}
+        />
+      </div>
 
-      <br /><label>Payment Method:</label>
-      <select value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)}>
-        <option value="matic">MATIC</option>
-        <option value="usdc">USDC</option>
-        <option value="usdt">USDT</option>
-        <option value="weth">WETH</option>
-      </select>
-
-      <br /><br />
-      <button onClick={handleBuy} disabled={loading || !signer}>
-        {loading ? 'Processing...' : 'Buy Bundle'}
+      <button
+        onClick={handleBuy}
+        disabled={loading}
+        style={{
+          marginTop: 15,
+          padding: '12px 24px',
+          backgroundColor: '#00ffc3',
+          color: '#000',
+          fontWeight: 'bold',
+          borderRadius: '30px',
+          border: 'none',
+          cursor: 'pointer',
+          boxShadow: '0 0 8px #00ffc3',
+        }}
+      >
+        {loading
+          ? 'Processing...'
+          : `Buy Bundle — Phase ${selectedPhase}`}
       </button>
 
       {txHash && (
-        <p>TX: <a href={`https://polygonscan.com/tx/${txHash}`} target="_blank" rel="noopener noreferrer">View TX</a></p>
+        <p style={{ marginTop: '10px' }}>
+          TX Hash: <a href={`https://polygonscan.com/tx/${txHash}`} target="_blank" rel="noreferrer">View</a>
+        </p>
       )}
     </div>
   );
 };
 
 export default BuyBundlePaymentType;
+
 
