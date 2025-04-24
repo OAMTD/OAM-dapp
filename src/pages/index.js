@@ -11,7 +11,7 @@ import BuyOAMCarousel from '../components/BuyOAM/BuyOAMCarousel';
 import BuyBundleCarousel from '../components/BuyBundle/BuyBundleCarousel';
 import FlashCarousel from '../components/BuyFlashbits/FlashCarousel';
 import ReferralDashboard from '../components/ReferralDashboard';
-import oamTokenAbi from '../abi/oamTokendao_abi.js';
+import { oamTokenAbi } from '../abi/oamTokendao_abi.js';
 
 const Dashboard = () => {
   const { address, isConnected } = useAccount();
