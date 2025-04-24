@@ -1,5 +1,5 @@
 
-export const oamTokenAbi = [
+ const oamTokenAbi = [
 
 
   
@@ -3200,3 +3200,5 @@ export const oamTokenAbi = [
       "type": "function"
     }
   ];
+
+  export default oamTokenAbi;
