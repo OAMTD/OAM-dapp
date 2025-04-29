@@ -1,20 +1,31 @@
-
-
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { parseUnits } from 'viem';
 import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
 import { erc20Abi } from '../../abi/erc20Abi.js';
-import  oamTokenAbi  from '../../abi/oamTokendao_abi.js';
+import oamTokenAbi from '../../abi/oamTokendao_abi.js';
 import { MyStyledConnectButton } from '../MyStyledConnectButton';
 
 const BUNDLE_PHASES = [
-  { phase: 1, price: 100, supply: 250 },
-  { phase: 2, price: 500, supply: 250 },
-  { phase: 3, price: 850, supply: 250 },
+  { phase: 1, basePrice: 100, cap: 250 },
+  { phase: 2, basePrice: 500, cap: 250 },
+  { phase: 3, basePrice: 850, cap: 250 },
 ];
+
+const TOKEN_DECIMALS = {
+  matic: 18,
+  usdc: 6,
+  usdt: 6,
+  weth: 18,
+};
+
+const PRICE_FEEDS = {
+  matic: process.env.NEXT_PUBLIC_MATIC_USD_FEED,
+  usdc: process.env.NEXT_PUBLIC_USDC_USD_FEED,
+  usdt: process.env.NEXT_PUBLIC_USDT_USD_FEED,
+  weth: process.env.NEXT_PUBLIC_WETH_USD_FEED,
+};
 
 const BuyBundlePaymentType = () => {
   const { address } = useAccount();
@@ -22,11 +33,48 @@ const BuyBundlePaymentType = () => {
   const publicClient = usePublicClient();
 
   const [selectedPhase, setSelectedPhase] = useState(1);
-  const [quantity, setQuantity] = useState(1);
+  const [paymentToken, setPaymentToken] = useState('matic');
+  const [convertedPrice, setConvertedPrice] = useState('0');
   const [txHash, setTxHash] = useState('');
   const [loading, setLoading] = useState(false);
 
   const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+
+  useEffect(() => {
+    fetchPrice();
+  }, [selectedPhase, paymentToken]);
+
+  const fetchPrice = async () => {
+    try {
+      const feedData = await publicClient.readContract({
+        address: PRICE_FEEDS[paymentToken],
+        abi: [
+          {
+            name: 'latestRoundData',
+            outputs: [
+              { internalType: 'uint80', name: 'roundId', type: 'uint80' },
+              { internalType: 'int256', name: 'answer', type: 'int256' },
+              { internalType: 'uint256', name: 'startedAt', type: 'uint256' },
+              { internalType: 'uint256', name: 'updatedAt', type: 'uint256' },
+              { internalType: 'uint80', name: 'answeredInRound', type: 'uint80' }
+            ],
+            inputs: [],
+            stateMutability: 'view',
+            type: 'function',
+          },
+        ],
+        functionName: 'latestRoundData',
+      });
+
+      const tokenUsd = Number(feedData[1]) / 1e8;
+      const base = BUNDLE_PHASES.find(p => p.phase === selectedPhase).basePrice;
+      const total = (base * 1.01) / tokenUsd;
+      setConvertedPrice(total.toFixed(6));
+    } catch (err) {
+      console.error('Price fetch error:', err.message);
+      setConvertedPrice('0');
+    }
+  };
 
   const handleBuy = async () => {
     if (!walletClient || !address) {
@@ -34,24 +82,25 @@ const BuyBundlePaymentType = () => {
       return;
     }
 
-    setLoading(true);
     try {
-      const bundleInfo = BUNDLE_PHASES.find(p => p.phase === selectedPhase);
-      const totalUsd = bundleInfo.price * quantity;
-      const ethValue = parseUnits(totalUsd.toString(), 18); // Assuming ETH equivalent
+      setLoading(true);
+
+      const base = BUNDLE_PHASES.find(p => p.phase === selectedPhase).basePrice;
+      const totalUsd = base * 1.01;
+      const ethValue = parseUnits(totalUsd.toString(), TOKEN_DECIMALS[paymentToken]);
 
       const hash = await walletClient.writeContract({
         address: contractAddress,
         abi: oamTokenAbi,
         functionName: 'buyBundle',
-        args: [selectedPhase, quantity],
-        value: ethValue
+        args: [selectedPhase, 1],
+        value: paymentToken === 'matic' ? ethValue : undefined,
       });
 
       setTxHash(hash);
     } catch (err) {
-      console.error('Transaction failed:', err.message);
-      alert('Buy failed: ' + err.message);
+      console.error('Buy error:', err.message);
+      alert('Transaction error: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -67,7 +116,7 @@ const BuyBundlePaymentType = () => {
         <select value={selectedPhase} onChange={(e) => setSelectedPhase(Number(e.target.value))}>
           {BUNDLE_PHASES.map(p => (
             <option key={p.phase} value={p.phase}>
-              Phase {p.phase} — ${p.price} | Supply: {p.supply}
+              Phase {p.phase} — ${p.basePrice} | Cap: {p.cap}
             </option>
           ))}
         </select>
@@ -77,10 +126,22 @@ const BuyBundlePaymentType = () => {
         <label>Quantity:</label><br />
         <input
           type="number"
-          value={quantity}
+          value={1}
           min={1}
-          onChange={(e) => setQuantity(Number(e.target.value))}
+          max={1}
+          disabled
         />
+        <small style={{ color: 'gray' }}>Limit: 1 per wallet</small>
+      </div>
+
+      <div>
+        <label>Payment Token:</label><br />
+        <select value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)}>
+          <option value="matic">MATIC</option>
+          <option value="usdc">USDC</option>
+          <option value="usdt">USDT</option>
+          <option value="weth">WETH</option>
+        </select>
       </div>
 
       <button
@@ -100,12 +161,12 @@ const BuyBundlePaymentType = () => {
       >
         {loading
           ? 'Processing...'
-          : `Buy Bundle — Phase ${selectedPhase}`}
+          : `Buy Bundle — ${convertedPrice} ${paymentToken.toUpperCase()}`}
       </button>
 
       {txHash && (
         <p style={{ marginTop: '10px' }}>
-          TX Hash: <a href={`https://polygonscan.com/tx/${txHash}`} target="_blank" rel="noreferrer">View</a>
+          TX: <a href={`https://polygonscan.com/tx/${txHash}`} target="_blank" rel="noreferrer">View</a>
         </p>
       )}
     </div>
@@ -113,5 +174,3 @@ const BuyBundlePaymentType = () => {
 };
 
 export default BuyBundlePaymentType;
-
-

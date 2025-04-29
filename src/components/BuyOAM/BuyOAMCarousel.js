@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import BuyOAMPaymentType from './BuyOAMPaymentType';
-import { oamTokenAbi } from '../../abi/oamTokendao_abi';
+import oamTokenAbi from '../../abi/oamTokendao_abi';
 
 const OAM_PHASES = [
   { phase: 1, price: 3, cap: 100000 },
@@ -39,13 +39,13 @@ export default function BuyOAMCarousel({ signer }) {
 
   return (
     <div style={{
-      background: 'rgba(0, 0, 0, 0.5)',
-      backdropFilter: 'blur(8px)',
-      borderRadius: '12px',
-      padding: '20px',
-      border: '1px solid rgba(255,255,255,0.1)',
+      background: 'linear-gradient(145deg, #1a1a1a, #2b2b2b)',
+      borderRadius: '14px',
+      padding: '24px',
+      border: '2px solid #00FFF0',
+      boxShadow: '0 0 18px #00FFF0, inset 0 0 6px #00FFF0',
       textAlign: 'center',
-      maxWidth: '700px',
+      maxWidth: '740px',
       margin: '0 auto'
     }}>
 
@@ -53,22 +53,27 @@ export default function BuyOAMCarousel({ signer }) {
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
-        marginBottom: '20px',
-        gap: '10px',
+        marginBottom: '24px',
+        gap: '12px',
         flexWrap: 'wrap'
       }}>
         {OAM_PHASES.map(({ phase, price, cap }) => {
-          const isActive = phase === currentPhase;
+          const isActive = phase === currentPhase || (currentPhase === null && phase === 1);
           return (
             <div key={phase} style={{
               flex: '1 1 30%',
-              padding: '15px',
-              borderRadius: '10px',
-              background: isActive ? 'rgba(0,255,240,0.1)' : 'rgba(255,255,255,0.05)',
+              padding: '16px',
+              borderRadius: '12px',
+              background: isActive ? 'rgba(0, 255, 240, 0.15)' : 'rgba(50,50,50,0.35)',
               border: isActive ? '2px solid #00FFF0' : '1px solid rgba(255,255,255,0.1)',
-              color: isActive ? '#00FFF0' : '#888',
+              boxShadow: isActive
+                ? '0 0 12px #00FFF0, inset 0 0 8px #00FFF0'
+                : 'none',
+              color: isActive ? '#00FFF0' : '#aaa',
               fontWeight: isActive ? 'bold' : 'normal',
-              transition: 'all 0.3s ease'
+              textShadow: isActive ? '0 0 6px #00FFF0' : 'none',
+              transition: 'all 0.4s ease',
+              animation: isActive ? 'cyberPulse 2s infinite alternate' : 'none'
             }}>
               <div>Phase {phase}</div>
               <div>Price: ${price}</div>
@@ -78,11 +83,23 @@ export default function BuyOAMCarousel({ signer }) {
         })}
       </div>
 
-      {/* Buy Handler Below */}
+      {/* Buy Handler */}
       <BuyOAMPaymentType
         signer={signer}
-        selectedPhase={currentPhase || 1} // Fallback to phase 1 if null
+        selectedPhase={currentPhase || 1}
       />
+
+      {/* Embedded keyframes */}
+      <style>{`
+        @keyframes cyberPulse {
+          from {
+            box-shadow: 0 0 8px #00FFF0, inset 0 0 4px #00FFF0;
+          }
+          to {
+            box-shadow: 0 0 20px #00FFF0, inset 0 0 12px #00FFF0;
+          }
+        }
+      `}</style>
     </div>
   );
 }

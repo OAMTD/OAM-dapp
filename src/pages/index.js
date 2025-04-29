@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,15 +9,14 @@ import BuyOAMCarousel from '../components/BuyOAM/BuyOAMCarousel';
 import BuyBundleCarousel from '../components/BuyBundle/BuyBundleCarousel';
 import FlashCarousel from '../components/BuyFlashbits/FlashCarousel';
 import ReferralDashboard from '../components/ReferralDashboard';
-import  oamTokenAbi  from '../abi/oamTokendao_abi.js';
+import oamTokenAbi from '../abi/oamTokendao_abi.js';
+import RoscaWarpWindow from '../components/RoscaWarpWindow';
+import RoscaGrowthLockPanel from '../components/RoscaGrowthLockPanel';
 
 const Dashboard = () => {
   const { address, isConnected } = useAccount();
   const publicClient = usePublicClient();
 
-  const [currentPhase, setCurrentPhase] = useState(null);
-  const [currentPrice, setCurrentPrice] = useState(null);
-  const [currentPhaseSupply, setCurrentPhaseSupply] = useState(null);
   const [totalOAMSold, setTotalOAMSold] = useState(null);
   const [totalFlashbitsSold, setTotalFlashbitsSold] = useState(null);
   const [totalBundlesSold, setTotalBundlesSold] = useState(null);
@@ -31,22 +28,7 @@ const Dashboard = () => {
       if (!publicClient) return;
 
       try {
-        const [phase, priceRaw, supply, oamRaw, flashRaw, bundleRaw] = await Promise.all([
-          readContract({
-            address: CONTRACT_ADDRESS,
-            abi: oamTokenAbi,
-            functionName: 'currentSalePhase',
-          }),
-          readContract({
-            address: CONTRACT_ADDRESS,
-            abi: oamTokenAbi,
-            functionName: 'getCurrentSalePrice',
-          }),
-          readContract({
-            address: CONTRACT_ADDRESS,
-            abi: oamTokenAbi,
-            functionName: 'getCurrentPhaseSupply',
-          }),
+        const [oamRaw, flashRaw, bundleRaw] = await Promise.all([
           readContract({
             address: CONTRACT_ADDRESS,
             abi: oamTokenAbi,
@@ -64,9 +46,6 @@ const Dashboard = () => {
           }),
         ]);
 
-        setCurrentPhase(Number(phase));
-        setCurrentPrice(Number(formatUnits(priceRaw, 18)).toFixed(4));
-        setCurrentPhaseSupply(Number(formatUnits(supply, 18)));
         setTotalOAMSold(Number(formatUnits(oamRaw, 18)));
         setTotalFlashbitsSold(Number(flashRaw));
         setTotalBundlesSold(Number(bundleRaw));
@@ -89,9 +68,6 @@ const Dashboard = () => {
       </h1>
 
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <p><strong>Current Sale Phase:</strong> {currentPhase ?? 'Loading...'}</p>
-        <p><strong>Phase Supply Remaining:</strong> {currentPhaseSupply ?? 'Loading...'}</p>
-        <p><strong>Current OAM Price:</strong> ${currentPrice ?? 'Loading...'}</p>
         <p><strong>Total OAM Sold:</strong> {totalOAMSold ?? 'Loading...'}</p>
         <p><strong>Total Flashbits Sold:</strong> {totalFlashbitsSold ?? 'Loading...'}</p>
         <p><strong>Total Bundles Sold:</strong> {totalBundlesSold ?? 'Loading...'}</p>
@@ -111,7 +87,9 @@ const Dashboard = () => {
         fontSize: '1.2rem',
         color: '#00FFF0'
       }}>
-        <em>OAM Benchmark Rosca coming soon</em>
+        <em>OAM Benchmark Rosca now available</em>
+        <RoscaWarpWindow />
+        <RoscaGrowthLockPanel />
       </div>
     </div>
   );
@@ -135,6 +113,3 @@ const cardStyle = {
 };
 
 export default Dashboard;
-
-
-

@@ -3,10 +3,10 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
-import { readContract, writeContract } from '@wagmi/core';
+import { readContract } from '@wagmi/core';
+import { formatUnits } from 'viem';
 import { QRCode } from 'react-qrcode-logo';
-import { formatUnits, parseUnits } from 'viem';
-import  oamTokenAbi  from '../abi/oamTokendao_abi.js';
+import oamTokenAbi from '../abi/oamTokendao_abi.js';
 
 const ReferralDashboard = () => {
   const { address, isConnected } = useAccount();
@@ -36,19 +36,19 @@ const ReferralDashboard = () => {
             address: CONTRACT_ADDRESS,
             abi: oamTokenAbi,
             functionName: 'getReferralCount',
-            args: [address]
+            args: [address],
           }),
           readContract({
             address: CONTRACT_ADDRESS,
             abi: oamTokenAbi,
             functionName: 'getReferralEarnings',
-            args: [address]
+            args: [address],
           }),
           readContract({
             address: CONTRACT_ADDRESS,
             abi: oamTokenAbi,
             functionName: 'isWhitelisted',
-            args: [address]
+            args: [address],
           }),
         ]);
 
@@ -56,7 +56,7 @@ const ReferralDashboard = () => {
         setReferralEarnings(Number(formatUnits(earnings, 6)));
         setIsWhitelisted(whitelistStatus);
       } catch (err) {
-        console.error("Error fetching referral data:", err.message);
+        console.error('Error fetching referral data:', err.message);
       }
     };
 
@@ -98,17 +98,24 @@ const ReferralDashboard = () => {
     : null;
 
   return (
-    <div style={{ marginTop: 50, textAlign: 'center' }}>
-      <h2 style={{ color: '#00ffc3', marginBottom: 16 }}>Referral Dashboard</h2>
+    <div style={{
+      marginTop: 50,
+      textAlign: 'center',
+      color: '#00ffc3',
+      fontFamily: 'monospace',
+    }}>
+      <h2 style={{ marginBottom: 16, fontWeight: 'bold' }}>
+        Referral Dashboard
+      </h2>
 
       {isConnected && address ? (
         <>
           <div style={{
             display: 'inline-block',
             backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            padding: 16,
+            padding: 20,
             borderRadius: 12,
-            boxShadow: '0 0 10px #00ffc3'
+            boxShadow: '0 0 12px #00ffc3'
           }}>
             <QRCode
               value={address}
@@ -117,13 +124,13 @@ const ReferralDashboard = () => {
               fgColor="#00ffc3"
               eyeRadius={2}
             />
-            <p style={{ marginTop: 10, fontSize: '0.85rem', color: '#00ffc3' }}>
+            <p style={{ marginTop: 10, fontSize: '0.9rem' }}>
               {address.slice(0, 6)}...{address.slice(-4)}
             </p>
           </div>
 
-          <div style={{ marginTop: 25 }}>
-            <p style={{ fontSize: '0.9rem', color: '#ccc' }}>Your Referral Link:</p>
+          <div style={{ marginTop: 30 }}>
+            <p>Your Referral Link:</p>
             <div style={{
               display: 'inline-block',
               padding: '10px 15px',
@@ -154,16 +161,22 @@ const ReferralDashboard = () => {
             </button>
           </div>
 
-          <div style={{ marginTop: 30, color: '#00ffc3', fontSize: '1rem' }}>
-            <p>Total Referrals: <strong>{referralCount ?? 'Loading...'}</strong></p>
-            <p>Total Earned: <strong>{referralEarnings ?? 'Loading...'} USDC</strong></p>
-            <p>Estimated Volume: <strong>{estimatedVolume ?? 'Loading...'} USD</strong></p>
+          <div style={{ marginTop: 30, fontSize: '1rem' }}>
+            {referralCount === null
+              ? <div className="placeholder-blur" />
+              : <p>Total Referrals: <strong>{referralCount}</strong></p>}
+            {referralEarnings === null
+              ? <div className="placeholder-blur" />
+              : <p>Total Earned: <strong>{referralEarnings} USDC</strong></p>}
+            {estimatedVolume === null
+              ? <div className="placeholder-blur" />
+              : <p>Estimated Volume: <strong>{estimatedVolume} USD</strong></p>}
           </div>
 
           {isWhitelisted && (
             <div style={{ marginTop: 40 }}>
-              <h3 style={{ color: '#00ffc3' }}>Adjust Your Referral Rate</h3>
-              <label style={{ color: '#ccc' }}>Rate (1% - 5%)</label><br />
+              <h3>Adjust Your Referral Rate</h3>
+              <label>Rate (1% - 5%)</label><br />
               <input
                 type="number"
                 value={customRate}
@@ -174,7 +187,11 @@ const ReferralDashboard = () => {
                   padding: '8px',
                   width: '80px',
                   margin: '10px',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  borderRadius: '5px',
+                  border: '1px solid #00ffc3',
+                  backgroundColor: '#000',
+                  color: '#00ffc3'
                 }}
               />
               <button
@@ -195,7 +212,7 @@ const ReferralDashboard = () => {
           )}
         </>
       ) : (
-        <p style={{ color: '#ccc', marginTop: 20 }}>
+        <p style={{ marginTop: 20 }}>
           Connect your wallet to access referral tools.
         </p>
       )}
@@ -204,5 +221,3 @@ const ReferralDashboard = () => {
 };
 
 export default ReferralDashboard;
-
-
