@@ -11,7 +11,7 @@ export const WETH_ADDRESS = process.env.NEXT_PUBLIC_WETH_ADDRESS;
 "use client";
 import { useEffect, useState } from "react";
 import { ethers, Contract } from "ethers";
-import oamTokenAbi from "../abi/oamTokendao_abi.js";
+import oamTokenAbi from "../abi/oamTokendaoAbi.js";
 
 export default function ContractInfo({ signer }) {
   const [name, setName] = useState("");

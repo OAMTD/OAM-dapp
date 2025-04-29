@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { parseUnits } from 'viem';
 import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
 import { erc20Abi } from '../../abi/erc20Abi.js';
-import oamTokenAbi from '../../abi/oamTokendao_abi.js';
+import oamTokenAbi from '../../abi/oamTokendaoAbi.js';
 import { MyStyledConnectButton } from '../MyStyledConnectButton';
 
 const OAM_PHASES = [

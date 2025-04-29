@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import BuyOAMPaymentType from './BuyOAMPaymentType';
-import oamTokenAbi from '../../abi/oamTokendao_abi';
+import oamTokenAbi from '../../abi/oamTokendaoAbi';
 
 const OAM_PHASES = [
   { phase: 1, price: 3, cap: 100000 },

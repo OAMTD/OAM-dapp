@@ -6,7 +6,7 @@ import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import { readContract } from '@wagmi/core';
 import { formatUnits } from 'viem';
 import { QRCode } from 'react-qrcode-logo';
-import oamTokenAbi from '../abi/oamTokendao_abi.js';
+import oamTokenAbi from '../abi/oamTokendaoAbi.js';
 
 const ReferralDashboard = () => {
   const { address, isConnected } = useAccount();
