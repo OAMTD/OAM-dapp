@@ -1,6 +1,6 @@
 // src/abi/erc20Abi.js
 
- const erc20Abi = [
+ export const erc20Abi = [
     {
       "constant": true,
       "inputs": [],
@@ -64,4 +64,4 @@
       "type": "function"
     }
   ];
-  export default erc20Abi;
+  

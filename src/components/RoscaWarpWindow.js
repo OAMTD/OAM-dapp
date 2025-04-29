@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { MyStyledConnectButton } from './MyStyledConnectButton';
 import RoscaAbi from '../abi/BlindRoscaABI.js'; 
-import { ethers } from 'ethers';
+import { JsonRpcProvider } from 'ethers';
+import { parseUnits, formatUnits } from 'ethers';
+
 
 export default function RoscaWarpWindow() {
   const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;

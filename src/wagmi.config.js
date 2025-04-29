@@ -10,4 +10,4 @@ export const wagmiConfig = getDefaultConfig ({
   });
 
 
-
+export const chains = [polygon, mainnet]
