@@ -52,28 +52,27 @@ const BuyFlashbitsPaymentType = () => {
     try {
       const feedData = await publicClient.readContract({
         address: PRICE_FEEDS[paymentToken],
-        abi: [
-          {
-            name: 'latestRoundData',
-            outputs: [
-              { internalType: 'uint80', name: 'roundId', type: 'uint80' },
-              { internalType: 'int256', name: 'answer', type: 'int256' },
-              { internalType: 'uint256', name: 'startedAt', type: 'uint256' },
-              { internalType: 'uint256', name: 'updatedAt', type: 'uint256' },
-              { internalType: 'uint80', name: 'answeredInRound', type: 'uint80' }
-            ],
-            inputs: [],
-            stateMutability: 'view',
-            type: 'function',
-          },
-        ],
+        abi: [{
+          name: 'latestRoundData',
+          outputs: [
+            { name: 'roundId', type: 'uint80' },
+            { name: 'answer', type: 'int256' },
+            { name: 'startedAt', type: 'uint256' },
+            { name: 'updatedAt', type: 'uint256' },
+            { name: 'answeredInRound', type: 'uint80' }
+          ],
+          inputs: [],
+          stateMutability: 'view',
+          type: 'function',
+        }],
         functionName: 'latestRoundData',
       });
 
       const pricePerUSD = Number(feedData[1]) / 1e8;
       const flashPrice = FLASHBITS_PHASES.find(p => p.phase === selectedPhase).price;
       const usdTotal = flashPrice * Number(quantity);
-      setConvertedPrice((usdTotal / pricePerUSD).toFixed(6));
+      const padded = (usdTotal / pricePerUSD) * 1.015;
+      setConvertedPrice(padded.toFixed(6));
     } catch (err) {
       console.error('Price feed failed:', err.message);
       setConvertedPrice('0');
@@ -103,15 +102,12 @@ const BuyFlashbitsPaymentType = () => {
     }
 
     if (Number(quantity) > 999999 && oamBalance < 25) {
-      alert('You must hold 25 OAM or less than 999,999 Flashbits per transaction.');
+      alert('Max 999,999 Flashbits allowed unless 25 OAM held.');
       return;
     }
 
     try {
       setLoading(true);
-      const phaseInfo = FLASHBITS_PHASES.find(p => p.phase === selectedPhase);
-      const priceUSD = phaseInfo.price * Number(quantity);
-      const value = parseUnits(priceUSD.toString(), TOKEN_DECIMALS[paymentToken]);
       const flashQty = BigInt(quantity);
 
       const tx = await walletClient.writeContract({
@@ -119,7 +115,7 @@ const BuyFlashbitsPaymentType = () => {
         abi: oamTokenAbi,
         functionName: 'sellFlashbitsAdvanced',
         args: [flashQty, paymentToken.toUpperCase()],
-        value: paymentToken === 'matic' ? value : undefined,
+        value: paymentToken === 'matic' ? parseUnits(convertedPrice, TOKEN_DECIMALS[paymentToken]) : undefined,
       });
 
       setTxHash(tx);
@@ -138,28 +134,36 @@ const BuyFlashbitsPaymentType = () => {
 
       <div>
         <label>Phase:</label><br />
-        <select value={selectedPhase} onChange={(e) => setSelectedPhase(Number(e.target.value))}>
+        <select
+          value={selectedPhase}
+          onChange={(e) => setSelectedPhase(Number(e.target.value))}
+          style={{ maxWidth: 240 }}
+        >
           {FLASHBITS_PHASES.map(p => (
             <option key={p.phase} value={p.phase}>
-              Phase {p.phase} — ${p.price} | Cap: {p.cap.toLocaleString()} Flashbits
+              Phase {p.phase} — ${p.price}
             </option>
           ))}
         </select>
       </div>
 
       <div>
-        <label>Quantity (max 999,999 unless 25 OAM held):</label><br />
+        <label>Quantity:</label><br />
         <input
           type="number"
           value={quantity}
-          min={1}
+          placeholder="Max 999,999"
           onChange={(e) => setQuantity(e.target.value)}
         />
       </div>
 
       <div>
         <label>Payment Token:</label><br />
-        <select value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)}>
+        <select
+          value={paymentToken}
+          onChange={(e) => setPaymentToken(e.target.value)}
+          style={{ maxWidth: 240 }}
+        >
           <option value="matic">MATIC</option>
           <option value="usdc">USDC</option>
           <option value="usdt">USDT</option>

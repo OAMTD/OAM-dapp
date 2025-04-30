@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { parseUnits } from 'viem';
 import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
-import { erc20Abi } from '../../abi/erc20Abi.js';
 import oamTokenAbi from '../../abi/oamTokendaoAbi.js';
 import { MyStyledConnectButton } from '../MyStyledConnectButton';
 
@@ -68,8 +67,6 @@ const BuyOAMPaymentType = () => {
 
       const tokenUsdPrice = Number(feedData[1]) / 1e8;
       const usdTotal = OAM_PHASES.find(p => p.phase === selectedPhase).price * Number(quantity);
-      
-      // Enforce overpayment buffer (1.5% to cover rounding/slippage)
       const paddedValue = (usdTotal / tokenUsdPrice) * 1.015;
       setConvertedPrice(paddedValue.toFixed(6));
     } catch (err) {
@@ -107,14 +104,14 @@ const BuyOAMPaymentType = () => {
       });
 
       const pricePerToken = Number(tokenFeed[1]) / 1e8;
-      const paddedValue = (usdTotal / pricePerToken) * 1.015; // 1.5% buffer
+      const paddedValue = (usdTotal / pricePerToken) * 1.015;
       const value = parseUnits(paddedValue.toString(), TOKEN_DECIMALS[paymentToken]);
 
       const hash = await walletClient.writeContract({
         address: contractAddress,
         abi: oamTokenAbi,
-        functionName: paymentToken === 'matic' ? 'buyOAMWithNative' : 'buyOAMWithToken',
-        args: paymentToken === 'matic' ? [selectedPhase, quantity] : [paymentToken, value],
+        functionName: 'buy',
+        args: [quantity, 0, process.env[`NEXT_PUBLIC_${paymentToken.toUpperCase()}_ADDRESS`]],
         value: paymentToken === 'matic' ? value : undefined,
       });
 
@@ -134,7 +131,18 @@ const BuyOAMPaymentType = () => {
 
       <div>
         <label>Phase:</label><br />
-        <select value={selectedPhase} onChange={(e) => setSelectedPhase(Number(e.target.value))}>
+        <select
+          value={selectedPhase}
+          onChange={(e) => setSelectedPhase(Number(e.target.value))}
+          style={{
+            width: '100%',
+            maxWidth: '210px',
+            padding: '6px 10px',
+            fontSize: '14px',
+            borderRadius: '8px',
+            marginBottom: '12px',
+          }}
+        >
           {OAM_PHASES.map(p => (
             <option key={p.phase} value={p.phase}>
               Phase {p.phase} — ${p.price} | Cap: {p.cap.toLocaleString()} OAM
@@ -150,12 +158,17 @@ const BuyOAMPaymentType = () => {
           value={quantity}
           placeholder="Enter amount of OAM"
           onChange={(e) => setQuantity(e.target.value)}
+          style={{ width: '100%', maxWidth: '210px', marginBottom: '12px' }}
         />
       </div>
 
       <div>
         <label>Payment Token:</label><br />
-        <select value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)}>
+        <select
+          value={paymentToken}
+          onChange={(e) => setPaymentToken(e.target.value)}
+          style={{ width: '100%', maxWidth: '210px', marginBottom: '12px' }}
+        >
           <option value="matic">MATIC</option>
           <option value="usdc">USDC</option>
           <option value="usdt">USDT</option>
