@@ -11,3 +11,15 @@ export const STABLECOINS = {
     }
   };
   
+  export function getStablecoinAddress(tokenChain) {
+    // Split tokenChain like "USDC-Polygon"
+    const [token, network] = tokenChain.toLowerCase().split('-');
+    const chain = network === 'eth' ? 'ethereum' : network;
+  
+    if (STABLECOINS[token] && STABLECOINS[token][chain]) {
+      return STABLECOINS[token][chain];
+    }
+  
+    console.warn(`Unrecognized stablecoin mapping for ${tokenChain}`);
+    return null;
+  }

@@ -1,49 +1,60 @@
-import { ethers } from "ethers";
-import { Web3Provider } from "@ethersproject/providers";
-import BlindRoscaABI from "../../abi/BlindRoscaABI";
+'use client';
 
-const roscaAddress = process.env.NEXT_PUBLIC_ROSCA_PROXY_ADDRESS; // From your env
-const ADMIN_ADDRESS = "0x1399eF43A3a51Bf146DD35Be2180d476b5D50fAa"; // <<< PLACE YOUR ADMIN WALLET HERE
+import { writeContract, getWalletClient } from '@wagmi/core';
+import { useAccount } from 'wagmi';
+import BlindRoscaABI from '../../abi/BlindRoscaABI';
+
+const roscaAddress = process.env.NEXT_PUBLIC_ROSCA_PROXY_ADDRESS;
+const ADMIN_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_ADDRESS; // Stored securely in .env
 
 export default function AddStablecoin() {
+  const { address, isConnected } = useAccount();
+
   async function addStablecoin() {
-    if (!window.ethereum) {
-      alert("Connect wallet first!");
+    if (!isConnected || !window.ethereum) {
+      alert('Please connect your wallet first.');
       return;
     }
 
-    const provider = new Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-    const userAddress = await signer.getAddress();
-
-    // ADMIN CHECK
-    if (userAddress.toLowerCase() !== ADMIN_ADDRESS.toLowerCase()) {
-      alert("You are not authorized to perform this action.");
+    // Admin check (prevent unnecessary contract call)
+    if (address.toLowerCase() !== ADMIN_ADDRESS?.toLowerCase()) {
+      alert('Unauthorized: Only admin can add stablecoins.');
       return;
     }
 
-    const rosca = new ethers.Contract(roscaAddress, BlindRoscaABI, signer);
-
-    const stablecoinAddress = prompt("Paste the stablecoin address (example: USDC address)");
+    const stablecoinAddress = prompt('Paste the stablecoin address (e.g., USDC address)');
     if (!stablecoinAddress) {
-      alert("No address entered");
+      alert('No address entered.');
       return;
     }
 
     try {
-      const tx = await rosca.addStablecoin(stablecoinAddress);
-      alert("Transaction sent. Waiting confirmation...");
-      await tx.wait();
-      alert(`Stablecoin ${stablecoinAddress} successfully added.`);
+      const walletClient = await getWalletClient();
+      if (!walletClient) {
+        alert('Wallet client not available.');
+        return;
+      }
+
+      const txHash = await writeContract({
+        address: roscaAddress,
+        abi: BlindRoscaABI,
+        functionName: 'addStablecoin',
+        args: [stablecoinAddress],
+        account: address,
+      });
+
+      alert('Transaction submitted: ' + txHash);
     } catch (error) {
       console.error(error);
-      alert("Error adding stablecoin." + (error?.reason || error?.message || "Unknwon error"));
+      alert('Error adding stablecoin: ' + (error?.shortMessage || error?.message || 'Unknown error'));
     }
   }
 
   return (
     <div>
-      <button onClick={addStablecoin}>Add Stablecoin (Admin Only)</button>
+      <button onClick={addStablecoin}>
+        Add Stablecoin (Admin Only)
+      </button>
     </div>
   );
 }

@@ -73,10 +73,10 @@ const Dashboard = () => {
         <p><strong>Total Bundles Sold:</strong> {totalBundlesSold ?? 'Loading...'}</p>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-        <div style={cardStyle}><h3>Buy OAM</h3><BuyOAMCarousel /></div>
-        <div style={cardStyle}><h3>Buy Bundle</h3><BuyBundleCarousel /></div>
-        <div style={cardStyle}><h3>Buy Flashbits</h3><FlashCarousel /></div>
+      <div style={carouselContainerStyle}>
+        <div style={cardStyle}><h3>Buy OAM Active</h3><BuyOAMCarousel /></div>
+        <div style={cardStyle}><h3>Buy Bundle Active</h3><BuyBundleCarousel /></div>
+        <div style={cardStyle}><h3>Buy Flashbits Active</h3><FlashCarousel /></div>
       </div>
 
       <ReferralDashboard />
@@ -104,12 +104,22 @@ const backdropStyle = {
   padding: '40px'
 };
 
+const carouselContainerStyle = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'center',
+  gap: '1.5rem',
+  marginBottom: '2rem',
+};
+
 const cardStyle = {
-  width: '30%',
+  flex: '1 1 300px',
+  maxWidth: '380px',
   backgroundColor: 'rgba(0,0,0,0.6)',
   padding: '20px',
   borderRadius: '10px',
-  textAlign: 'center'
+  textAlign: 'center',
+  minWidth: '280px',
 };
 
 export default Dashboard;

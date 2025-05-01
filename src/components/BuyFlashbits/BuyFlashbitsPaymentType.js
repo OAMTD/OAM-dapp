@@ -1,16 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { parseUnits, formatUnits } from 'viem';
+import { parseUnits } from 'viem';
 import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
-import { erc20Abi } from '../../abi/erc20Abi.js';
-import oamTokenAbi from '../../abi/oamTokendaoAbi.js';
 import { MyStyledConnectButton } from '../MyStyledConnectButton';
+import oamTokenAbi from '../../abi/oamTokendaoAbi.js';
 
 const FLASHBITS_PHASES = [
   { phase: 1, price: 0.0001001, cap: 250_000_000_000 },
   { phase: 2, price: 0.000125, cap: 750_000_000_000 },
 ];
+
+const PRICE_FEEDS = {
+  matic: process.env.NEXT_PUBLIC_MATIC_USD_FEED,
+  usdc: process.env.NEXT_PUBLIC_USDC_USD_FEED,
+  usdt: process.env.NEXT_PUBLIC_USDT_USD_FEED,
+  weth: process.env.NEXT_PUBLIC_WETH_USD_FEED,
+};
 
 const TOKEN_DECIMALS = {
   matic: 18,
@@ -19,11 +25,11 @@ const TOKEN_DECIMALS = {
   weth: 18,
 };
 
-const PRICE_FEEDS = {
-  matic: process.env.NEXT_PUBLIC_MATIC_USD_FEED,
-  usdc: process.env.NEXT_PUBLIC_USDC_USD_FEED,
-  usdt: process.env.NEXT_PUBLIC_USDT_USD_FEED,
-  weth: process.env.NEXT_PUBLIC_WETH_USD_FEED,
+const TOKEN_ADDRESSES = {
+  matic: '0x0000000000000000000000000000000000000000',
+  usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS,
+  usdt: process.env.NEXT_PUBLIC_USDT_ADDRESS,
+  weth: process.env.NEXT_PUBLIC_WETH_ADDRESS,
 };
 
 const BuyFlashbitsPaymentType = () => {
@@ -37,18 +43,15 @@ const BuyFlashbitsPaymentType = () => {
   const [convertedPrice, setConvertedPrice] = useState('0');
   const [txHash, setTxHash] = useState('');
   const [loading, setLoading] = useState(false);
-  const [oamBalance, setOamBalance] = useState(0);
 
   const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
-  const oamTokenAddress = process.env.NEXT_PUBLIC_OAM_TOKEN_ADDRESS;
 
   useEffect(() => {
     fetchPrice();
-    checkOAMBalance();
   }, [selectedPhase, quantity, paymentToken]);
 
   const fetchPrice = async () => {
-    if (!quantity || isNaN(quantity)) return setConvertedPrice('0');
+    if (!quantity || isNaN(quantity) || Number(quantity) <= 0) return setConvertedPrice('0');
     try {
       const feedData = await publicClient.readContract({
         address: PRICE_FEEDS[paymentToken],
@@ -68,60 +71,39 @@ const BuyFlashbitsPaymentType = () => {
         functionName: 'latestRoundData',
       });
 
-      const pricePerUSD = Number(feedData[1]) / 1e8;
-      const flashPrice = FLASHBITS_PHASES.find(p => p.phase === selectedPhase).price;
-      const usdTotal = flashPrice * Number(quantity);
-      const padded = (usdTotal / pricePerUSD) * 1.015;
+      const tokenUsdPrice = Number(feedData[1]) / 1e8;
+      const usdTotal = FLASHBITS_PHASES.find(p => p.phase === selectedPhase).price * Number(quantity);
+      const padded = (usdTotal / tokenUsdPrice) * 1.01;
       setConvertedPrice(padded.toFixed(6));
     } catch (err) {
-      console.error('Price feed failed:', err.message);
+      console.error('Fetch price failed:', err.message);
       setConvertedPrice('0');
     }
   };
 
-  const checkOAMBalance = async () => {
-    if (!address) return;
-    try {
-      const balance = await publicClient.readContract({
-        address: oamTokenAddress,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [address],
-      });
-
-      setOamBalance(Number(formatUnits(balance, 18)));
-    } catch (err) {
-      console.error('Failed to fetch OAM balance:', err.message);
-    }
-  };
-
   const handleBuy = async () => {
-    if (!walletClient || !address) {
-      alert('Connect wallet first.');
-      return;
-    }
-
-    if (Number(quantity) > 999999 && oamBalance < 25) {
-      alert('Max 999,999 Flashbits allowed unless 25 OAM held.');
-      return;
-    }
+    if (!walletClient || !address) return alert('Please connect your wallet.');
 
     try {
       setLoading(true);
-      const flashQty = BigInt(quantity);
+      const mode = 0; // Flashbits
+      const amount = BigInt(Math.max(1, Number(quantity)));
+      const tokenAddr = TOKEN_ADDRESSES[paymentToken];
+      const ethValue = paymentToken === 'matic'
+        ? parseUnits(convertedPrice.toString(), TOKEN_DECIMALS[paymentToken])
+        : undefined;
 
-      const tx = await walletClient.writeContract({
+      const hash = await walletClient.writeContract({
         address: contractAddress,
         abi: oamTokenAbi,
-        functionName: 'sellFlashbitsAdvanced',
-        args: [flashQty, paymentToken.toUpperCase()],
-        value: paymentToken === 'matic' ? parseUnits(convertedPrice, TOKEN_DECIMALS[paymentToken]) : undefined,
+        functionName: 'buy',
+        args: [amount, mode, tokenAddr],
+        value: ethValue,
       });
 
-      setTxHash(tx);
+      setTxHash(hash);
     } catch (err) {
-      console.error('Transaction failed:', err.message);
-      alert('Transaction error: ' + err.message);
+      alert('Transaction failed: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -131,46 +113,29 @@ const BuyFlashbitsPaymentType = () => {
     <div style={{ padding: 20 }}>
       <h2>Buy Flashbits</h2>
       <MyStyledConnectButton />
-
       <div>
         <label>Phase:</label><br />
-        <select
-          value={selectedPhase}
-          onChange={(e) => setSelectedPhase(Number(e.target.value))}
-          style={{ maxWidth: 240 }}
-        >
+        <select value={selectedPhase} onChange={(e) => setSelectedPhase(Number(e.target.value))} style={{ width: '100%' }}>
           {FLASHBITS_PHASES.map(p => (
             <option key={p.phase} value={p.phase}>
-              Phase {p.phase} — ${p.price}
+              Phase {p.phase} — ${p.price} | Cap: {p.cap.toLocaleString()}
             </option>
           ))}
         </select>
       </div>
-
       <div>
-        <label>Quantity:</label><br />
-        <input
-          type="number"
-          value={quantity}
-          placeholder="Max 999,999"
-          onChange={(e) => setQuantity(e.target.value)}
-        />
+        <label>Quantity (min 1):</label><br />
+        <input type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
       </div>
-
       <div>
         <label>Payment Token:</label><br />
-        <select
-          value={paymentToken}
-          onChange={(e) => setPaymentToken(e.target.value)}
-          style={{ maxWidth: 240 }}
-        >
+        <select value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)}>
           <option value="matic">MATIC</option>
           <option value="usdc">USDC</option>
           <option value="usdt">USDT</option>
           <option value="weth">WETH</option>
         </select>
       </div>
-
       <button
         onClick={handleBuy}
         disabled={loading}
@@ -190,7 +155,6 @@ const BuyFlashbitsPaymentType = () => {
           ? 'Processing...'
           : `Buy Flashbits — ${convertedPrice} ${paymentToken.toUpperCase()}`}
       </button>
-
       {txHash && (
         <p style={{ marginTop: '10px' }}>
           TX: <a href={`https://polygonscan.com/tx/${txHash}`} target="_blank" rel="noreferrer">View</a>
@@ -201,3 +165,5 @@ const BuyFlashbitsPaymentType = () => {
 };
 
 export default BuyFlashbitsPaymentType;
+
+

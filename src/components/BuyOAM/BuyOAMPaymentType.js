@@ -1,15 +1,16 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { parseUnits } from 'viem';
 import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
-import oamTokenAbi from '../../abi/oamTokendaoAbi.js';
 import { MyStyledConnectButton } from '../MyStyledConnectButton';
+import oamTokenAbi from '../../abi/oamTokendaoAbi.js';
 
 const OAM_PHASES = [
-  { phase: 1, price: 3, cap: 100000 },
-  { phase: 2, price: 12, cap: 300000 },
-  { phase: 3, price: 20, cap: 900000 },
+  { phase: 1, price: 3, cap: 100_000 },
+  { phase: 2, price: 12, cap: 300_000 },
+  { phase: 3, price: 20, cap: 900_000 },
 ];
 
 const PRICE_FEEDS = {
@@ -24,6 +25,13 @@ const TOKEN_DECIMALS = {
   usdc: 6,
   usdt: 6,
   weth: 18,
+};
+
+const TOKEN_ADDRESSES = {
+  matic: '0x0000000000000000000000000000000000000000',
+  usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS,
+  usdt: process.env.NEXT_PUBLIC_USDT_ADDRESS,
+  weth: process.env.NEXT_PUBLIC_WETH_ADDRESS,
 };
 
 const BuyOAMPaymentType = () => {
@@ -66,9 +74,11 @@ const BuyOAMPaymentType = () => {
       });
 
       const tokenUsdPrice = Number(feedData[1]) / 1e8;
-      const usdTotal = OAM_PHASES.find(p => p.phase === selectedPhase).price * Number(quantity);
-      const paddedValue = (usdTotal / tokenUsdPrice) * 1.015;
-      setConvertedPrice(paddedValue.toFixed(6));
+      const phasePrice = OAM_PHASES.find(p => p.phase === selectedPhase).price;
+      const usdTotal = phasePrice * Number(quantity);
+      const total = usdTotal / tokenUsdPrice;
+
+      setConvertedPrice(total.toFixed(6));
     } catch (err) {
       console.error('Price fetch failed:', err.message);
       setConvertedPrice('0');
@@ -77,48 +87,31 @@ const BuyOAMPaymentType = () => {
 
   const handleBuy = async () => {
     if (!walletClient || !address) {
-      alert('Please connect your wallet first.');
+      alert('Connect wallet first.');
       return;
     }
 
     try {
       setLoading(true);
 
-      const usdTotal = OAM_PHASES.find(p => p.phase === selectedPhase).price * Number(quantity);
-      const tokenFeed = await publicClient.readContract({
-        address: PRICE_FEEDS[paymentToken],
-        abi: [{
-          name: 'latestRoundData',
-          outputs: [
-            { name: 'roundId', type: 'uint80' },
-            { name: 'answer', type: 'int256' },
-            { name: 'startedAt', type: 'uint256' },
-            { name: 'updatedAt', type: 'uint256' },
-            { name: 'answeredInRound', type: 'uint80' }
-          ],
-          inputs: [],
-          stateMutability: 'view',
-          type: 'function',
-        }],
-        functionName: 'latestRoundData',
-      });
+      const amount = BigInt(quantity);
+      const mode = 1; // OAM
+      const tokenAddr = TOKEN_ADDRESSES[paymentToken];
+      const value = paymentToken === 'matic'
+        ? parseUnits(convertedPrice, TOKEN_DECIMALS[paymentToken])
+        : undefined;
 
-      const pricePerToken = Number(tokenFeed[1]) / 1e8;
-      const paddedValue = (usdTotal / pricePerToken) * 1.015;
-      const value = parseUnits(paddedValue.toString(), TOKEN_DECIMALS[paymentToken]);
-
-      const hash = await walletClient.writeContract({
+      const tx = await walletClient.writeContract({
         address: contractAddress,
         abi: oamTokenAbi,
         functionName: 'buy',
-        args: [quantity, 0, process.env[`NEXT_PUBLIC_${paymentToken.toUpperCase()}_ADDRESS`]],
-        value: paymentToken === 'matic' ? value : undefined,
+        args: [amount, mode, tokenAddr],
+        value,
       });
 
-      setTxHash(hash);
+      setTxHash(tx);
     } catch (err) {
-      console.error('Transaction error:', err.message);
-      alert('Error: ' + err.message);
+      alert('Transaction error: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -128,54 +121,34 @@ const BuyOAMPaymentType = () => {
     <div style={{ padding: 20 }}>
       <h2>Buy OAM Tokens (Pre-Sale)</h2>
       <MyStyledConnectButton />
-
       <div>
         <label>Phase:</label><br />
-        <select
-          value={selectedPhase}
-          onChange={(e) => setSelectedPhase(Number(e.target.value))}
-          style={{
-            width: '100%',
-            maxWidth: '210px',
-            padding: '6px 10px',
-            fontSize: '14px',
-            borderRadius: '8px',
-            marginBottom: '12px',
-          }}
-        >
+        <select value={selectedPhase} onChange={(e) => setSelectedPhase(Number(e.target.value))} style={{ width: '100%' }}>
           {OAM_PHASES.map(p => (
             <option key={p.phase} value={p.phase}>
-              Phase {p.phase} — ${p.price} | Cap: {p.cap.toLocaleString()} OAM
+              Phase {p.phase} — ${p.price} | Cap: {p.cap.toLocaleString()}
             </option>
           ))}
         </select>
       </div>
-
       <div>
         <label>Quantity:</label><br />
         <input
           type="number"
           value={quantity}
-          placeholder="Enter amount of OAM"
+          min={1}
           onChange={(e) => setQuantity(e.target.value)}
-          style={{ width: '100%', maxWidth: '210px', marginBottom: '12px' }}
         />
       </div>
-
       <div>
         <label>Payment Token:</label><br />
-        <select
-          value={paymentToken}
-          onChange={(e) => setPaymentToken(e.target.value)}
-          style={{ width: '100%', maxWidth: '210px', marginBottom: '12px' }}
-        >
+        <select value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)}>
           <option value="matic">MATIC</option>
           <option value="usdc">USDC</option>
           <option value="usdt">USDT</option>
           <option value="weth">WETH</option>
         </select>
       </div>
-
       <button
         onClick={handleBuy}
         disabled={loading}
@@ -195,7 +168,6 @@ const BuyOAMPaymentType = () => {
           ? 'Processing...'
           : `Buy OAM — ${convertedPrice} ${paymentToken.toUpperCase()}`}
       </button>
-
       {txHash && (
         <p style={{ marginTop: '10px' }}>
           TX: <a href={`https://polygonscan.com/tx/${txHash}`} target="_blank" rel="noreferrer">View</a>

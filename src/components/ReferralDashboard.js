@@ -23,7 +23,7 @@ const ReferralDashboard = () => {
   const rewardPercent = 0.03;
 
   const referralLink = address
-    ? `https://yourdomain.com/?ref=${address}`
+    ? `https://www.oamtokendao.com/=${address}`
     : '';
 
   useEffect(() => {
